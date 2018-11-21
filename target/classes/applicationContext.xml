@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+    		http://www.springframework.org/schema/beans/spring-beans.xsd 
+    		http://www.springframework.org/schema/context 
+    		http://www.springframework.org/schema/context/spring-context.xsd
+    		http://www.springframework.org/schema/aop
+    		http://www.springframework.org/schema/aop/spring-aop.xsd
+    		http://www.springframework.org/schema/tx
+    		http://www.springframework.org/schema/tx/spring-tx.xsd">
+	
+	<!-- 1.使用placeHodler读取外部配置(数据库信息配置文件) -->
+	<context:property-placeholder location="classpath:db.properties" />
+
+	<!-- 2.配置数据库连接池 -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+		init-method="init" destroy-method="close">
+		<property name="driverClassName" value="${jdbc.driver}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+
+
+	<!-- 3.创建sessionFactory对象 SqlSessionFactoryBean -->
+	<bean id="sessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!-- 3.1关联数据源 -->
+		<property name="dataSource" ref="dataSource" />
+
+		<!-- 3.2读取mybatis相关的配置信息(读取mybatis.cfg.xml文件) -->
+		<property name="configLocation" value="classpath:mybatis.cfg.xml" />
+
+		<!-- 3.3配置别名注解扫描(配置别名的类在什么包下：@Alias("user")) -->
+		<property name="typeAliasesPackage" value="com.senqi.entity" />
+
+		<!-- 3.4关联映射文件 -->
+		<property name="mapperLocations" value="classpath:com/senqi/mapper/*Mapper.xml" />
+	</bean>
+
+	<!-- 4.配置事务管理器 DataSourceTransactionManager -->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<!-- 5.tx事务模板 What -->
+	<tx:advice id="crudAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<!-- 从上往下匹配 When -->
+			<tx:method name="get*" read-only="true" />
+			<tx:method name="select*" read-only="true" />
+			<tx:method name="list*" read-only="true" />
+			<tx:method name="query*" read-only="true" />
+			<tx:method name="find*" read-only="true" />
+			<tx:method name="*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+
+	<!-- 6.AOP相关的配置：切入事务 -->
+	<aop:config>
+		<!-- 6.1配置切入点 Where -->
+		<aop:pointcut expression="execution(* com.senqi.service..*.*(..))"
+			id="pointcut" />
+		<!-- 6.2把Where和What、When关联 -->
+		<aop:advisor advice-ref="crudAdvice" pointcut-ref="pointcut" />
+	</aop:config>
+
+
+	<!-- 7.基于注解：配置service,dao,web -->
+	<!-- 注解包扫描 -->
+	<context:component-scan base-package="com.senqi" />
+
+	<!-- Mapper接口扫描器 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.senqi.mapper" />
+	</bean>
+
+</beans>
+
